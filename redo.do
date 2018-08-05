@@ -1,1 +1,1 @@
-ghc -o $3 -v0 redo.hs
+ghc -v0 -o $3 redo.hs
