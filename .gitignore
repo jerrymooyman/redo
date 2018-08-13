@@ -2,3 +2,8 @@ redo
 redo.hi
 redo.o
 .vim/
+
+
+tags
+tags.lock
+tags.tmp
