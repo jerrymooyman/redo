@@ -7,9 +7,9 @@ import System.IO (hPutStrLn, stderr)
 import System.Process (createProcess, waitForProcess, shell)
 
 main :: IO ()
-main = do
-  args <- getArgs
-  mapM_ redo args
+--main = getArgs >>= \ args -> mapM_ redo args
+--main = getArgs >>= mapM_ redo
+main = mapM_ redo =<< getArgs
 
 redo :: String -> IO ()
 redo target = do
