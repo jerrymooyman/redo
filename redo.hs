@@ -1,4 +1,4 @@
-import Control.Monad (filterM)
+import Control.Monad (filterM, liftM)
 import System.Directory (renameFile, removeFile, doesFileExist)
 import System.Environment (getArgs)
 import System.Exit (ExitCode(..))
@@ -27,9 +27,7 @@ redo target = do
           removeFile tmp
 
 redoPath :: FilePath -> IO (Maybe FilePath)
-redoPath target = do
-  existingCandidates <- filterM doesFileExist candidates
-  return $ safeHead existingCandidates
+redoPath target = safeHead `liftM` filterM doesFileExist candidates
   where candidates = [target ++ ".do"] ++ if hasExtension target then [replaceBaseName target "default" ++ ".do"] else []
         safeHead [] = Nothing
         safeHead (x:_) = Just x
