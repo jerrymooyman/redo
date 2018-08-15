@@ -1,4 +1,5 @@
 import Control.Monad (filterM, liftM)
+import Data.Maybe (listToMaybe)
 import System.Directory (renameFile, removeFile, doesFileExist)
 import System.Environment (getArgs)
 import System.Exit (ExitCode(..))
@@ -25,12 +26,10 @@ redo target = maybe printMissing redo' =<< redoPath target
               removeFile tmp
     tmp = target ++ "---redoing"
     printMissing = error $ "no .do file found for target '" ++ target ++ "'"
-    cmd path = "sh " ++ path ++ " 0 " ++ takeBaseName target ++ " " ++ tmp ++ " > " ++ tmp
+    cmd path = unwords ["sh", path, "0", takeBaseName target, tmp, ">", tmp]
 
 
 redoPath :: FilePath -> IO (Maybe FilePath)
-redoPath target = safeHead `liftM` filterM doesFileExist candidates
+redoPath target = listToMaybe `liftM` filterM doesFileExist candidates
   where candidates = [target ++ ".do"] ++ if hasExtension target then [replaceBaseName target "default" ++ ".do"] else []
-        safeHead [] = Nothing
-        safeHead (x:_) = Just x
 
