@@ -12,33 +12,20 @@ main :: IO ()
 main = mapM_ redo =<< getArgs
 
 redo :: String -> IO ()
-redo target = do
-  let tmp = target ++ "---redoing"
-  maybePath <- redoPath target
-  case maybePath of
-    Nothing -> error $ "no .do file found for target '" ++ target ++ "'"
-    Just path -> do
-      (_, _, _, ph) <- createProcess $ shell $ "sh " ++ path ++ " 0 " ++ takeBaseName target ++ " " ++ tmp ++ " > " ++ tmp
-      exit <- waitForProcess ph
-      case exit of
-        ExitSuccess -> renameFile tmp target
-        ExitFailure code -> do
-          hPutStrLn stderr $ "Redo script exited with non-zero exit code: " ++ show code
-          removeFile tmp
-
-
-
-  --maybePath <- redoPath target
-  --case maybePath of
-    --Nothing -> error $ "no .do file found for target '" ++ target ++ "'"
-    --Just path -> do
-      --(_, _, _, ph) <- createProcess $ shell $ "sh " ++ path ++ " 0 " ++ takeBaseName target ++ " " ++ tmp ++ " > " ++ tmp
-      --exit <- waitForProcess ph
-      --case exit of
-        --ExitSuccess -> renameFile tmp target
-        --ExitFailure code -> do
-          --hPutStrLn stderr $ "Redo script exited with non-zero exit code: " ++ show code
-          --removeFile tmp
+redo target = maybe printMissing redo' =<< redoPath target
+ where
+    redo' :: FilePath -> IO ()
+    redo' path = do
+          (_, _, _, ph) <- createProcess $ shell $ cmd path
+          exit <- waitForProcess ph
+          case exit of
+            ExitSuccess -> renameFile tmp target
+            ExitFailure code -> do
+              hPutStrLn stderr $ "Redo script exited with non-zero exit code: " ++ show code
+              removeFile tmp
+    tmp = target ++ "---redoing"
+    printMissing = error $ "no .do file found for target '" ++ target ++ "'"
+    cmd path = "sh " ++ path ++ " 0 " ++ takeBaseName target ++ " " ++ tmp ++ " > " ++ tmp
 
 
 redoPath :: FilePath -> IO (Maybe FilePath)
@@ -46,7 +33,4 @@ redoPath target = safeHead `liftM` filterM doesFileExist candidates
   where candidates = [target ++ ".do"] ++ if hasExtension target then [replaceBaseName target "default" ++ ".do"] else []
         safeHead [] = Nothing
         safeHead (x:_) = Just x
-
-
-
 
