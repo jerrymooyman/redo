@@ -1,5 +1,3 @@
-{-# LANGUAGE StandaloneDeriving #-}
-
 import Control.Monad (filterM, liftM)
 import Data.Map.Lazy (insert, fromList, toList, adjust)
 import Data.Maybe (listToMaybe)
@@ -11,6 +9,7 @@ import System.FilePath (hasExtension, replaceBaseName, takeBaseName)
 import System.IO (hPutStrLn, stderr)
 import System.Process (createProcess, waitForProcess, shell, CreateProcess(..))
 
+traceShow' :: Show b => b -> b
 traceShow' arg = traceShow arg arg
 
 main :: IO ()
