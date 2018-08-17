@@ -1,22 +1,21 @@
-import Control.Monad (filterM, liftM)
-import Data.Map.Lazy (insert, fromList, toList, adjust)
-import Data.Maybe (listToMaybe)
-import Debug.Trace (traceShow)
-import System.Directory (renameFile, removeFile, doesFileExist)
-import System.Environment (getArgs, getEnvironment)
-import System.Exit (ExitCode(..))
-import System.FilePath (hasExtension, replaceBaseName, takeBaseName)
-import System.IO (hPutStrLn, stderr)
-import System.Process (createProcess, waitForProcess, shell, CreateProcess(..))
+import           Control.Monad      (filterM, liftM)
+import           Data.Map.Lazy      (adjust, fromList, insert, toList)
+import           Data.Maybe         (listToMaybe)
+import           Debug.Trace        (traceShow)
+import           System.Directory   (doesFileExist, removeFile, renameFile)
+import           System.Environment (getArgs, getEnvironment)
+import           System.Exit        (ExitCode (..))
+import           System.FilePath    (hasExtension, replaceBaseName,
+                                     takeBaseName)
+import           System.IO          (hPutStrLn, stderr)
+import           System.Process     (CreateProcess (..), createProcess, shell,
+                                     waitForProcess)
 
 traceShow' :: Show b => b -> b
 traceShow' arg = traceShow arg arg
 
 main :: IO ()
---main = getArgs >>= \ args -> mapM_ redo args
---main = getArgs >>= mapM_ redo
 main = mapM_ redo =<< getArgs
-
 redo :: String -> IO ()
 redo target = maybe printMissing redo' =<< redoPath target
  where
