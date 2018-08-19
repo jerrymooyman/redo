@@ -2,8 +2,14 @@ redo
 redo.hi
 redo.o
 .vim/
-
+.redo/
 
 tags
 tags.lock
 tags.tmp
+
+
+README.txt
+
+
+
