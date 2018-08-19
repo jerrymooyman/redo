@@ -15,7 +15,8 @@ import           System.Directory     (createDirectoryIfMissing, doesFileExist,
                                        getDirectoryContents,
                                        removeDirectoryRecursive, removeFile,
                                        renameFile)
-import           System.Environment   (getArgs, getEnvironment)
+import           System.Environment   (getArgs, getEnvironment, getProgName,
+                                       lookupEnv)
 import           System.Exit          (ExitCode (..))
 import           System.FilePath      (hasExtension, replaceBaseName,
                                        takeBaseName, (</>))
@@ -29,53 +30,64 @@ import           System.Process       (CreateProcess (..), createProcess, shell,
 traceShow' :: Show b =>  b -> b
 traceShow' arg = traceShow arg arg
 
+metaDir = ".redo"
+
 main :: IO ()
-main = mapM_ redo =<< getArgs
+main = do
+  mapM_ redo =<< getArgs
+  progName <- getProgName
+  redoTarget' <- lookupEnv "REDO_TARGET"
+  case (progName, redoTarget') of
+      ("redo-ifchange", Just redoTarget) -> mapM_ (writeMD5 redoTarget) =<< getArgs
+      ("redo-ifchange", Nothing) -> error "Missing REDO_TARGET environment variable"
+      _ -> return ()
+  where writeMD5 redoTarget dep = writeFile (metaDir </> redoTarget </> dep) =<< md5' dep
 
 redo :: String -> IO ()
 redo target = do
-  upToDate' <- upToDate target metaDepsDir
-  unless upToDate' $ maybe printMissing redo' =<< redoPath target
- where
-    redo' :: FilePath -> IO ()
-    redo' path = do
-      catchJust (guard . isDoesNotExistError)
-                (removeDirectoryRecursive metaDepsDir)
-                (\_ -> return ())
-      createDirectoryIfMissing True metaDepsDir
-      writeFile (metaDepsDir </> path) =<< md5' path
+  upToDate' <- upToDate metaDepsDir
+  unless upToDate' $ maybe missingDo redo' =<< redoPath target
+  where
+      redo' :: FilePath -> IO ()
+      redo' path = do
+        catchJust (guard . isDoesNotExistError)
+                  (removeDirectoryRecursive metaDepsDir)
+                  (\_ -> return ())
+        createDirectoryIfMissing True metaDepsDir
+        writeFile (metaDepsDir </> path) =<< md5' path
 
-      oldEnv <- getEnvironment
-      let newEnv = toList $ adjust (++ ":.") "PATH" $ insert "REDO_TARGET" target $ fromList oldEnv
-      (_, _, _, ph) <- createProcess $ (shell $ cmd path) {env = Just newEnv}
-      exit <- waitForProcess ph
-      case exit of
-        ExitSuccess -> renameFile tmp target
-        ExitFailure code -> do
-          hPutStrLn stderr $ "Redo script exited with non-zero exit code: " ++ show code
-          removeFile tmp
-    tmp = target ++ "---redoing"
-    metaDepsDir = ".redo" </> target
-    printMissing = error $ "no .do file found for target '" ++ target ++ "'"
-    cmd path = traceShow' $ unwords ["sh", path, "0", takeBaseName target, tmp, ">", tmp]
+        oldEnv <- getEnvironment
+        let newEnv = toList $ adjust (++ ":.") "PATH" $ insert "REDO_TARGET" target $ fromList oldEnv
+        (_, _, _, ph) <- createProcess $ (shell $ cmd path) {env = Just newEnv}
+        exit <- waitForProcess ph
+        case exit of
+          ExitSuccess -> renameFile tmp target
+          ExitFailure code -> do
+            hPutStrLn stderr $ "Redo script exited with non-zero exit code: " ++ show code
+            removeFile tmp
+      tmp = target ++ "---redoing"
+      metaDepsDir = metaDir </> target
+      missingDo = do
+        exists <- doesFileExist target
+        unless exists $ error $ "no .do file found for target '" ++ target ++ "'"
+      cmd path = traceShow' $ unwords ["sh", path, "0", takeBaseName target, tmp, ">", tmp]
 
 
 redoPath :: FilePath -> IO (Maybe FilePath)
 redoPath target = listToMaybe `liftM` filterM doesFileExist candidates
   where candidates = (target ++ ".do") : [replaceBaseName target "default" ++ ".do" | hasExtension target]
 
-upToDate :: String -> FilePath -> IO Bool
-upToDate target metaDepsDir = catch
+upToDate :: FilePath -> IO Bool
+upToDate metaDepsDir = catch
   (do deps <- getDirectoryContents metaDepsDir
-      (traceShow' . all id) `liftM` mapM depUpToDate deps)
+      (traceShow' . and) `liftM` mapM depUpToDate deps)
   (\(_ :: IOException) -> return False)
-    where depUpToDate :: FilePath -> IO Bool
-          depUpToDate dep = catch
-            (do oldMD5 <- withFile (metaDepsDir </> dep) ReadMode hGetLine
-                newMD5 <- md5' dep
-                return $ oldMD5 == show newMD5)
-            (\e -> return $ ioeGetErrorType e == InappropriateType)
+  where depUpToDate :: FilePath -> IO Bool
+        depUpToDate dep = catch
+          (do oldMD5 <- withFile (metaDepsDir </> dep) ReadMode hGetLine
+              newMD5 <- md5' dep
+              return $ oldMD5 == newMD5)
+          (\e -> return $ ioeGetErrorType e == InappropriateType)
 
 md5' :: FilePath -> IO String
 md5' path = (show . md5) `liftM` BL.readFile path
-
