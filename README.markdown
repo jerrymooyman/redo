@@ -6,6 +6,22 @@ This is an implementation of djb's redo in haskell
 
 redo *target*
 
+i.e. redo install
+
+## Generating documentation
+
+```bash
+$> cabal haddock --executable
+```
+Then open generated index.html in web browser.
+
+### Haddock tips
+* `adding options_haddock prune` only generates documentation for function that contain documentation.
+* by correctly formatting type signatures, haddock will generate documentation for function arguments.
+* to generate documentation for executables run haddock with `--executable` option
+* haddock from commandline may have trouble finding deps, so use haddock via cabal (see example above)
+* haddock will complain if main function is not exported from the module
+
 
 ## Background
 This project was built by following Jekor's haskell from scratch tutorial.
@@ -47,6 +63,14 @@ https://www.youtube.com/watch?annotation_id=annotation_911185&feature=iv&src_vid
 
 * episode 12
 - cabal and hackage
+- packaging up project and uploading to hackage
+- resolving deps for distribution
+
+
+* episode 13
+- documentation and haddock
+
+
 
 
 

@@ -1,5 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving  #-}
+{-# OPTIONS_HADDOCK prune #-}
+
+
+module Redo where
 
 import           Control.Exception    (IOException (..), catch, catchJust)
 import           Control.Monad        (filterM, guard, liftM, unless)
@@ -31,6 +35,7 @@ import           System.Process       (CreateProcess (..), createProcess, shell,
 traceShow' :: Show b =>  b -> b
 traceShow' arg = traceShow arg arg
 
+-- | This is the directory that redo will store and read metadata on targets from.
 metaDir :: String
 metaDir = ".redo"
 
@@ -49,8 +54,10 @@ main = do
       ("redo-ifchange", Nothing) -> error "Missing REDO_TARGET environment variable"
       _ -> return ()
 
--- TODO refactor out the directory argument
-redo :: String -> FilePath -> IO ()
+-- | Rebuild a given target if it's out-of-date or doesn't exist.
+redo :: String    -- ^ target (file) name
+     -> FilePath  -- ^ the current directory (for output purposes only)
+     -> IO ()
 redo target dir = do
   upToDate' <- upToDate target
   unless upToDate' $ maybe missingDo redo' =<< doPath target
@@ -85,11 +92,16 @@ redo target dir = do
       cmd path = unwords ["sh -e", path, "0", takeBaseName target, tmp, ">", tmp]
 
 
-doPath :: FilePath -> IO (Maybe FilePath)
+-- | The path if a 'do' script exists
+doPath :: FilePath -- ^ the path to check for a do script
+       -> IO (Maybe FilePath)
 doPath target = listToMaybe `liftM` filterM doesFileExist candidates
   where candidates = (target ++ ".do") : [replaceBaseName target "default" ++ ".do" | hasExtension target]
 
-upToDate :: FilePath -> IO Bool
+-- | Determines of a dependencies of a given filepath require rebuilding
+-- (i.e. contain changes since last build)
+upToDate :: FilePath -- ^ the path to build
+         -> IO Bool
 upToDate target = catch
   (do exists <- doesFileExist target
       if exists
@@ -108,15 +120,28 @@ upToDate target = catch
                              return $ (oldMD5 == newMD5) && upToDate')
           (\e -> return $ ioeGetErrorType e == InappropriateType)
 
-fileMD5 :: FilePath -> IO String
+-- | Calculate the MD5 checksum of a file.
+--
+-- for example
+--
+-- >>>fileMD5 "redo.hs"
+-- "55ac4edcec77043674e3ec8e4a60b3b2"
+fileMD5 :: FilePath   -- ^ the file to calculate the checksum of
+        -> IO String  -- ^ a 32-character MS5 checksum
 fileMD5 path = (show . MD5.md5) `liftM` BL.readFile path
 
 
+-- | Write out the MD5 checksum of a given dependency of a target
+writeMD5 :: FilePath -- ^ the target (file) for this dependency
+         -> FilePath -- ^ the file path of the dependency
+         -> IO ()
 writeMD5 redoTarget dep = do
   md5 <- fileMD5 dep
   writeFile (metaDir </> redoTarget </> md5) dep
 
-fileSize :: FilePath -> IO Integer
+-- | Determin a file's size
+fileSize :: FilePath   -- ^ the file to determin the size of
+         -> IO Integer -- ^ the file's size in bytes
 fileSize path = withFile path ReadMode hFileSize
 
 
