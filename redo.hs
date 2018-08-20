@@ -49,6 +49,7 @@ main = do
       ("redo-ifchange", Nothing) -> error "Missing REDO_TARGET environment variable"
       _ -> return ()
 
+-- TODO refactor out the directory argument
 redo :: String -> FilePath -> IO ()
 redo target dir = do
   upToDate' <- upToDate target
@@ -56,7 +57,7 @@ redo target dir = do
   where
       redo' :: FilePath -> IO ()
       redo' path = do
-        hPutStrLn stderr $ "redo " ++ show (dir </> target)
+        hPutStrLn stderr $ "redo " ++ (if dir == "./" then "" else dir) ++ target
         catchJust (guard . isDoesNotExistError)
                   (removeDirectoryRecursive metaDepsDir)
                   (\_ -> return ())
