@@ -18,7 +18,7 @@ import           System.Directory     (createDirectoryIfMissing, doesFileExist,
                                        renameFile, setCurrentDirectory)
 import           System.Environment   (getArgs, getEnvironment, getProgName,
                                        lookupEnv)
-import           System.Exit          (ExitCode (..))
+import           System.Exit          (ExitCode (..), exitWith)
 import           System.FilePath      (hasExtension, replaceBaseName,
                                        splitFileName, takeBaseName, (</>))
 import           System.IO            (IOMode (..), hFileSize, hGetLine,
@@ -75,12 +75,13 @@ redo target dir = do
           ExitFailure code -> do
             hPutStrLn stderr $ "Redo script exited with non-zero exit code: " ++ show code
             removeFile tmp
+            exitWith $ ExitFailure code
       tmp = target ++ "---redoing"
       metaDepsDir = metaDir </> target
       missingDo = do
         exists <- doesFileExist target
         unless exists $ error $ "no .do file found for target '" ++ target ++ "'"
-      cmd path = unwords ["sh", path, "0", takeBaseName target, tmp, ">", tmp]
+      cmd path = unwords ["sh -e", path, "0", takeBaseName target, tmp, ">", tmp]
 
 
 doPath :: FilePath -> IO (Maybe FilePath)
